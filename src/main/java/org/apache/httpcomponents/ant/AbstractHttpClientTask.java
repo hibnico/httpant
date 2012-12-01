@@ -22,27 +22,18 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
-import java.nio.charset.IllegalCharsetNameException;
-import java.nio.charset.UnsupportedCharsetException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.Inflater;
-import java.util.zip.InflaterInputStream;
-import java.util.zip.ZipInputStream;
 
 import org.apache.http.Header;
-import org.apache.http.HeaderElement;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.util.EntityUtils;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.Task;
@@ -199,44 +190,14 @@ public abstract class AbstractHttpClientTask extends Task {
             }
         } else if (responseProperty != null) {
             HttpEntity entity = response.getEntity();
-            InputStream in = getReponseInputStream(entity);
-            Charset c = getResponseCharset(entity);
             String content;
             try {
-                content = FileUtils.readFully(new InputStreamReader(in, c));
+                content = EntityUtils.toString(entity);
             } catch (IOException e) {
                 throw new BuildException("The response could not be read", e);
-            } finally {
-                FileUtils.close(in);
             }
             getProject().setNewProperty(responseProperty, content);
         }
-    }
-
-    private Charset getResponseCharset(HttpEntity entity) {
-        Charset c = Charset.defaultCharset();
-        if (entity.getContentType() != null) {
-            String charset = null;
-            HeaderElement[] elements = entity.getContentType().getElements();
-            if (elements != null) {
-                for (HeaderElement element : elements) {
-                    if (element.getName().equalsIgnoreCase("charset")) {
-                        charset = element.getValue();
-                        break;
-                    }
-                }
-            }
-            if (charset != null) {
-                try {
-                    c = Charset.forName(charset);
-                } catch (IllegalCharsetNameException e) {
-                    throw new BuildException("Illegal charset in the response " + charset, e);
-                } catch (UnsupportedCharsetException e) {
-                    throw new BuildException("Unsupported charset in the response " + charset, e);
-                }
-            }
-        }
-        return c;
     }
 
     private InputStream getReponseInputStream(HttpEntity entity) {
@@ -247,21 +208,6 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("The response could not be read", e);
         } catch (IOException e) {
             throw new BuildException("The response could not be read", e);
-        }
-        if (entity.getContentEncoding() != null) {
-            if ("gzip".equalsIgnoreCase(entity.getContentEncoding().getValue())) {
-                try {
-                    in = new GZIPInputStream(in);
-                } catch (IOException e) {
-                    throw new BuildException("The response has a gzip content encoding, but it failed to be read as such", e);
-                }
-            } else if ("deflate".equalsIgnoreCase(entity.getContentEncoding().getValue())) {
-                in = new InflaterInputStream(in, new Inflater(true));
-            } else if ("zlib".equalsIgnoreCase(entity.getContentEncoding().getValue())) {
-                in = new ZipInputStream(in);
-            } else {
-                throw new BuildException("The response has an unsupported content encoding: " + entity.getContentEncoding());
-            }
         }
         return in;
     }
