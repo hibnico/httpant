@@ -19,15 +19,29 @@ package org.apache.httpcomponents.ant;
 
 import java.net.URI;
 
+import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
+import org.apache.tools.ant.BuildException;
 
 public abstract class AbstractEntityEnclosingHttpClientTask extends AbstractHttpClientTask {
 
+    private HttpEntity entity;
+
     protected abstract HttpEntityEnclosingRequestBase buildEntityEnclosingRequest(URI u);
+
+    public void add(EntityNode entity) {
+        if (this.entity != null) {
+            throw new BuildException("Only one entity is allowed");
+        }
+        this.entity = entity.buildHttpEntity();
+    }
 
     @Override
     protected HttpEntityEnclosingRequestBase buildRequest(URI u) {
         HttpEntityEnclosingRequestBase request = buildEntityEnclosingRequest(u);
+        if (entity != null) {
+            request.setEntity(entity);
+        }
         return request;
     }
 

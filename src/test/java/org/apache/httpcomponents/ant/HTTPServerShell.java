@@ -24,6 +24,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.io.IOUtils;
 import org.eclipse.jetty.security.ConstraintMapping;
 import org.eclipse.jetty.security.ConstraintSecurityHandler;
 import org.eclipse.jetty.security.HashLoginService;
@@ -146,4 +147,19 @@ public class HTTPServerShell {
         }
     };
 
+    public static final Handler ECHO_HANDLER = new AbstractHandler() {
+        @Override
+        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
+                ServletException {
+            String responseEntity = baseRequest.getParameter("echo");
+            if (responseEntity == null) {
+                responseEntity = IOUtils.toString(baseRequest.getInputStream());
+            }
+            response.addHeader("Content-Type", "text/plain");
+            response.setStatus(200);
+            response.setContentLength(responseEntity.getBytes().length);
+            response.getOutputStream().write(responseEntity.getBytes());
+            response.getOutputStream().close();
+        }
+    };
 }
