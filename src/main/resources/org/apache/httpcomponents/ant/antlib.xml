@@ -23,6 +23,7 @@
     <typedef name="multipartentity" classname="org.apache.httpcomponents.ant.MultipartEntityNode" />
     <typedef name="fieldpart" classname="org.apache.httpcomponents.ant.FieldPartNode" />
     <typedef name="filepart" classname="org.apache.httpcomponents.ant.FilePartNode" />
+    <typedef name="responseheader" classname="org.apache.httpcomponents.ant.ResponseHeaderNode" />
 
     <taskdef name="get" classname="org.apache.httpcomponents.ant.GetHttpClientTask" />
     <taskdef name="delete" classname="org.apache.httpcomponents.ant.DeleteHttpClientTask" />
