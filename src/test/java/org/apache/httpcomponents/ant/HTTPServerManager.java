@@ -43,10 +43,10 @@ import org.eclipse.jetty.util.ssl.SslContextFactory;
 
 public class HTTPServerManager {
 
-    static final String PING_CONTEXT = "/ping";
-    static final String PING_RESPONSE = "pong?";
+    static final String PING_URL = "/ping";
+    static final String PING_RESPONSE = "pong";
 
-    static final String ECHO_CONTEXT = "/echo";
+    static final String ECHO_URL = "/echo";
     static final String ECHO_TEXT = "text";
 
     static final String INTERNAL_SERVER_ERROR_CONTEXT = "/500";
@@ -213,13 +213,13 @@ public class HTTPServerManager {
             @Override
             public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
                     ServletException {
-                if (target.equals(PING_CONTEXT)) {
+                if (target.equals(PING_URL)) {
                     pingHandler.handle(target, baseRequest, request, response);
-                } else if (target.equals(SECURE_CONTEXT + PING_CONTEXT)) {
+                } else if (target.equals(SECURE_CONTEXT + PING_URL)) {
                     securePingHandler.handle(target, baseRequest, request, response);
-                } else if (target.equals(ECHO_CONTEXT)) {
+                } else if (target.equals(ECHO_URL)) {
                     echoHandler.handle(target, baseRequest, request, response);
-                } else if (target.equals(SECURE_CONTEXT + ECHO_CONTEXT)) {
+                } else if (target.equals(SECURE_CONTEXT + ECHO_URL)) {
                     secureEchoHandler.handle(target, baseRequest, request, response);
                 } else if (target.equals(INTERNAL_SERVER_ERROR_CONTEXT)) {
                     errorHandler.handle(target, baseRequest, request, response);
