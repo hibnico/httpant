@@ -21,17 +21,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
-import java.io.IOException;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -48,17 +41,7 @@ public class BasicHttpClientTaskTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         httpServerShell.startServer();
-        httpServerShell.setHandler(new AbstractHandler() {
-            @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
-                    ServletException {
-                response.addHeader("Content-Type", "text/plain");
-                response.setStatus(200);
-                response.setContentLength("pong".getBytes().length);
-                response.getOutputStream().write("pong".getBytes());
-                response.getOutputStream().close();
-            }
-        });
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
         tempDir = File.createTempFile("httpant-test", "");
         tempDir.delete();
         tempDir.mkdir();
@@ -115,7 +98,7 @@ public class BasicHttpClientTaskTest {
         task.setResponseProperty("response");
         task.execute();
 
-        assertEquals("pong", project.getProperty("response"));
+        assertEquals(HTTPServerShell.PING_RESPONSE, project.getProperty("response"));
     }
 
     @Test
@@ -128,7 +111,7 @@ public class BasicHttpClientTaskTest {
         task.setResponseFile(responseFile);
         task.execute();
 
-        assertEquals("pong", FileUtils.readFileToString(responseFile));
+        assertEquals(HTTPServerShell.PING_RESPONSE, FileUtils.readFileToString(responseFile));
     }
 
     @Test

@@ -19,15 +19,7 @@ package org.apache.httpcomponents.ant;
 
 import static org.junit.Assert.assertEquals;
 
-import java.io.IOException;
-
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.tools.ant.Project;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -42,17 +34,8 @@ public class AuthHttpClientTaskTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         httpServerShell.startServer();
-        httpServerShell.setHandler(HTTPServerShell.buildBasicAuth(new AbstractHandler() {
-            @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
-                    ServletException {
-                response.addHeader("Content-Type", "text/plain");
-                response.setStatus(200);
-                response.setContentLength("pong".getBytes().length);
-                response.getOutputStream().write("pong".getBytes());
-                response.getOutputStream().close();
-            }
-        }, "Test Realm", "johndoe", "p4S5w0rd", new String[] { "admin" }));
+        httpServerShell.setHandler(HTTPServerShell.buildBasicAuth(HTTPServerShell.PING_HANDLER, "Test Realm", "johndoe", "p4S5w0rd",
+                new String[] { "admin" }));
     }
 
     @AfterClass
@@ -78,7 +61,7 @@ public class AuthHttpClientTaskTest {
         task.setResponseProperty("response");
         task.execute();
 
-        assertEquals("pong", project.getProperty("response"));
+        assertEquals(HTTPServerShell.PING_RESPONSE, project.getProperty("response"));
     }
 
     @Test

@@ -32,6 +32,7 @@ import org.eclipse.jetty.server.Connector;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.eclipse.jetty.server.handler.AbstractHandlerContainer;
 import org.eclipse.jetty.server.nio.SelectChannelConnector;
 import org.eclipse.jetty.server.ssl.SslSelectChannelConnector;
@@ -130,5 +131,19 @@ public class HTTPServerShell {
         secureHandler.setLoginService(loginService);
         return secureHandler;
     }
+
+    public static final String PING_RESPONSE = "pong";
+
+    public static final Handler PING_HANDLER = new AbstractHandler() {
+        @Override
+        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
+                ServletException {
+            response.addHeader("Content-Type", "text/plain");
+            response.setStatus(200);
+            response.setContentLength(PING_RESPONSE.getBytes().length);
+            response.getOutputStream().write(PING_RESPONSE.getBytes());
+            response.getOutputStream().close();
+        }
+    };
 
 }
