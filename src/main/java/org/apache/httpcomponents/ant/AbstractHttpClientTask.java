@@ -30,6 +30,8 @@ import java.util.List;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpUriRequest;
 import org.apache.http.impl.client.DefaultHttpClient;
@@ -58,6 +60,8 @@ public abstract class AbstractHttpClientTask extends Task {
     private File responseFile;
 
     private String responseProperty;
+
+    private CredentialNode credential;
 
     public void setUri(String uri) {
         this.uri = uri;
@@ -95,6 +99,19 @@ public abstract class AbstractHttpClientTask extends Task {
         responseHeaders.add(responseHeader);
     }
 
+    public void add(CredentialNode credential) {
+        if (this.credential != null) {
+            throw new BuildException("Only one credential is allowed");
+        }
+        if (credential.getUsername() == null) {
+            throw new BuildException("Missing attribute 'username'");
+        }
+        if (credential.getPassword() == null) {
+            throw new BuildException("Missing attribute 'password'");
+        }
+        this.credential = credential;
+    }
+
     public void setResponseFile(File responseFile) {
         this.responseFile = responseFile;
     }
@@ -114,13 +131,20 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Only one of 'reponseProperty' or 'reponseFile' attribute can be set");
         }
 
-        HttpClient client = new DefaultHttpClient();
+        DefaultHttpClient client = new DefaultHttpClient();
+
         URI u;
         try {
             u = new URI(uri);
         } catch (URISyntaxException e) {
             throw new BuildException("Incorrect URI '" + uri + "'", e);
         }
+
+        if (credential != null) {
+            client.getCredentialsProvider().setCredentials(new AuthScope(u.getHost(), u.getPort()),
+                    new UsernamePasswordCredentials(credential.getUsername(), credential.getPassword()));
+        }
+
         HttpUriRequest request = buildRequest(u);
         for (HeaderNode header : headers) {
             request.addHeader(header.getName(), header.getValue());

@@ -21,39 +21,57 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
+import org.eclipse.jetty.server.Request;
+import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-public class BasicHTTPTest {
+public class BasicHttpClientTaskTest {
 
-    private static HTTPServerManager httpServerManager = new HTTPServerManager();
+    private static HTTPServerShell httpServerShell = new HTTPServerShell();
 
     private static File tempDir;
 
     private Project project;
 
     @BeforeClass
-    public static void setup() throws Exception {
-        httpServerManager.startServer();
+    public static void beforeClass() throws Exception {
+        httpServerShell.startServer();
+        httpServerShell.setHandler(new AbstractHandler() {
+            @Override
+            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
+                    ServletException {
+                response.addHeader("Content-Type", "text/plain");
+                response.setStatus(200);
+                response.setContentLength("pong".getBytes().length);
+                response.getOutputStream().write("pong".getBytes());
+                response.getOutputStream().close();
+            }
+        });
         tempDir = File.createTempFile("httpant-test", "");
         tempDir.delete();
         tempDir.mkdir();
     }
 
     @AfterClass
-    public static void shutdown() throws Exception {
-        httpServerManager.stopServer();
+    public static void afterClass() throws Exception {
+        httpServerShell.stopServer();
         FileUtils.deleteDirectory(tempDir);
     }
 
     @Before
-    public void setupProject() {
+    public void before() {
         project = new Project();
     }
 
@@ -61,7 +79,7 @@ public class BasicHTTPTest {
     public void testGet() throws Exception {
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setStatusProperty("status");
         task.execute();
 
@@ -72,13 +90,13 @@ public class BasicHTTPTest {
     public void testGetExpected() throws Exception {
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.execute();
 
         task = new GetHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(400);
         try {
             task.execute();
@@ -92,32 +110,32 @@ public class BasicHTTPTest {
     public void testGetResponse() throws Exception {
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.setResponseProperty("response");
         task.execute();
 
-        assertEquals(HTTPServerManager.PING_RESPONSE, project.getProperty("response"));
+        assertEquals("pong", project.getProperty("response"));
     }
 
     @Test
     public void testGetResponseFile() throws Exception {
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         File responseFile = new File(tempDir, "response.txt");
         task.setResponseFile(responseFile);
         task.execute();
 
-        assertEquals(HTTPServerManager.PING_RESPONSE, FileUtils.readFileToString(responseFile));
+        assertEquals("pong", FileUtils.readFileToString(responseFile));
     }
 
     @Test
     public void testHead() throws Exception {
         HeadHttpClientTask task = new HeadHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.execute();
     }
@@ -126,7 +144,7 @@ public class BasicHTTPTest {
     public void testDelete() throws Exception {
         DeleteHttpClientTask task = new DeleteHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.execute();
     }
@@ -135,7 +153,7 @@ public class BasicHTTPTest {
     public void testOptions() throws Exception {
         OptionsHttpClientTask task = new OptionsHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.execute();
     }
@@ -144,8 +162,9 @@ public class BasicHTTPTest {
     public void testTrace() throws Exception {
         TraceHttpClientTask task = new TraceHttpClientTask();
         task.setProject(project);
-        task.setUri(httpServerManager.getHttpServerUri() + HTTPServerManager.PING_URL);
+        task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
         task.execute();
     }
+
 }
