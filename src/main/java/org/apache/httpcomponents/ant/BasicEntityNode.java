@@ -46,7 +46,19 @@ public class BasicEntityNode extends EntityNode {
     }
 
     public void setValue(String value) {
-        this.value = value;
+        if (this.value != null) {
+            this.value += value;
+        } else {
+            this.value = value;
+        }
+    }
+
+    public void addText(String value) {
+        if (this.value != null) {
+            this.value += value;
+        } else {
+            this.value = value;
+        }
     }
 
     public void add(Resource resource) {
