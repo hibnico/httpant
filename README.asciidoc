@@ -1,0 +1,9 @@
+Httpcomponent Ant Task
+======================
+
+Continuous Integration Build
+----------------------------
+
+Build can be found there: https://travis-ci.org/nlalevee/httpant
+
+Status: image:https://secure.travis-ci.org/nlalevee/httpant.png?branch=master
