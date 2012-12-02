@@ -107,6 +107,10 @@ public abstract class AbstractHttpClientTask extends Task {
         headers.add(header);
     }
 
+    public void addConfiguredHeader(HeaderNode header) {
+        add(header);
+    }
+
     public void add(ResponseHeaderNode responseHeader) {
         if (responseHeader.getName() == null) {
             throw new BuildException("Missing attribute 'name' on responseheader");
@@ -115,6 +119,10 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Missing attribute 'property' on responseheader");
         }
         responseHeaders.add(responseHeader);
+    }
+
+    public void addConfiguredResponseHeader(ResponseHeaderNode responseHeader) {
+        add(responseHeader);
     }
 
     public void add(CredentialNode credential) {
@@ -128,6 +136,10 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Missing attribute 'password' on credential");
         }
         this.credential = credential;
+    }
+
+    public void addConfiguredCredential(CredentialNode credential) {
+        add(credential);
     }
 
     public void add(SSLNode ssl) {
@@ -147,6 +159,10 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Missing attribute 'keystoreFile' on ssl setup");
         }
         this.ssl = ssl;
+    }
+
+    public void addConfiguredSSL(SSLNode ssl) {
+        add(ssl);
     }
 
     public void setResponseFile(File responseFile) {

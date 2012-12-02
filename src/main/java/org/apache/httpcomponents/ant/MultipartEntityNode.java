@@ -53,6 +53,14 @@ public class MultipartEntityNode extends EntityNode {
         parts.add(part);
     }
 
+    public void addConfiguredFieldPart(FieldPartNode part) {
+        add(part);
+    }
+
+    public void addConfiguredFilePart(FilePartNode part) {
+        add(part);
+    }
+
     @Override
     public MultipartEntity buildHttpEntity() {
         HttpMultipartMode m = HttpMultipartMode.STRICT;

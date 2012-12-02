@@ -36,6 +36,14 @@ public abstract class AbstractEntityEnclosingHttpClientTask extends AbstractHttp
         this.entity = entity.buildHttpEntity();
     }
 
+    public void addConfiguredEntity(BasicEntityNode entity) {
+        add(entity);
+    }
+
+    public void addConfiguredMultipartEntity(MultipartEntityNode entity) {
+        add(entity);
+    }
+
     @Override
     protected HttpEntityEnclosingRequestBase buildRequest(URI u) {
         HttpEntityEnclosingRequestBase request = buildEntityEnclosingRequest(u);
