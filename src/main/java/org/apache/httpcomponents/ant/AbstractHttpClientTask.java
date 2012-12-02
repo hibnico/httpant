@@ -18,12 +18,20 @@
 package org.apache.httpcomponents.ant;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.KeyManagementException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,7 +42,15 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.HttpUriRequest;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.conn.ssl.TrustStrategy;
+import org.apache.http.conn.ssl.X509HostnameVerifier;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.BasicClientConnectionManager;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
 import org.apache.http.util.EntityUtils;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
@@ -62,6 +78,8 @@ public abstract class AbstractHttpClientTask extends Task {
     private String responseProperty;
 
     private CredentialNode credential;
+
+    private SSLNode ssl;
 
     public void setUri(String uri) {
         this.uri = uri;
@@ -104,12 +122,31 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Only one credential is allowed");
         }
         if (credential.getUsername() == null) {
-            throw new BuildException("Missing attribute 'username'");
+            throw new BuildException("Missing attribute 'username' on credential");
         }
         if (credential.getPassword() == null) {
-            throw new BuildException("Missing attribute 'password'");
+            throw new BuildException("Missing attribute 'password' on credential");
         }
         this.credential = credential;
+    }
+
+    public void add(SSLNode ssl) {
+        if (this.ssl != null) {
+            throw new BuildException("Only one ssl setup is allowed");
+        }
+        if (ssl.getTruststoreFile() == null) {
+            throw new BuildException("Missing attribute 'truststoreFile' on ssl setup");
+        }
+        if (ssl.getTruststorePassword() == null) {
+            throw new BuildException("Missing attribute 'truststorePassword' on ssl setup");
+        }
+        if (ssl.getKeystoreFile() != null && ssl.getKeystorePassword() == null) {
+            throw new BuildException("Missing attribute 'keystorePassword' on ssl setup");
+        }
+        if (ssl.getKeystoreFile() == null && ssl.getKeystorePassword() != null) {
+            throw new BuildException("Missing attribute 'keystoreFile' on ssl setup");
+        }
+        this.ssl = ssl;
     }
 
     public void setResponseFile(File responseFile) {
@@ -131,7 +168,37 @@ public abstract class AbstractHttpClientTask extends Task {
             throw new BuildException("Only one of 'reponseProperty' or 'reponseFile' attribute can be set");
         }
 
-        DefaultHttpClient client = new DefaultHttpClient();
+        DefaultHttpClient client;
+        if (ssl != null) {
+            KeyStore keystore = null;
+            if (ssl.getKeystoreFile() != null) {
+                keystore = loadKeyStore("keystore", ssl.getKeystoreFile(), ssl.getKeystorePassword());
+            }
+            SchemeRegistry schemeRegistry = new SchemeRegistry();
+            String algorithm = SSLSocketFactory.TLS;
+            KeyStore truststore = loadKeyStore("truststore", ssl.getTruststoreFile(), ssl.getTruststorePassword());
+            SecureRandom secureRandom = null;
+            TrustStrategy trustStrategy = null;
+            X509HostnameVerifier x509HostnameVerifier = SSLSocketFactory.BROWSER_COMPATIBLE_HOSTNAME_VERIFIER;
+            SSLSocketFactory lSchemeSocketFactory;
+            try {
+                lSchemeSocketFactory = new SSLSocketFactory(algorithm, keystore, ssl.getKeystorePassword(), truststore, secureRandom, trustStrategy,
+                        x509HostnameVerifier);
+            } catch (KeyManagementException e) {
+                throw new BuildException("The SSL factory could not be setup", e);
+            } catch (UnrecoverableKeyException e) {
+                throw new BuildException("The SSL factory could not be setup", e);
+            } catch (NoSuchAlgorithmException e) {
+                throw new BuildException("The SSL factory could not be setup", e);
+            } catch (KeyStoreException e) {
+                throw new BuildException("The SSL factory could not be setup", e);
+            }
+            schemeRegistry.register(new Scheme("https", 443, lSchemeSocketFactory));
+            HttpParams httpParams = new BasicHttpParams();
+            client = new DefaultHttpClient(new BasicClientConnectionManager(schemeRegistry), httpParams);
+        } else {
+            client = new DefaultHttpClient();
+        }
 
         URI u;
         try {
@@ -222,6 +289,33 @@ public abstract class AbstractHttpClientTask extends Task {
             }
             getProject().setNewProperty(responseProperty, content);
         }
+    }
+
+    private KeyStore loadKeyStore(String name, File file, String password) {
+        KeyStore keystore;
+        try {
+            keystore = KeyStore.getInstance(KeyStore.getDefaultType());
+        } catch (KeyStoreException e) {
+            throw new BuildException("Error while creating the " + name, e);
+        }
+        FileInputStream in;
+        try {
+            in = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            throw new BuildException("The " + name + " file '" + file + "' could not be found", e);
+        }
+        try {
+            keystore.load(in, password.toCharArray());
+        } catch (NoSuchAlgorithmException e) {
+            throw new BuildException("The " + name + " could not be opened", e);
+        } catch (CertificateException e) {
+            throw new BuildException("The " + name + " could not be opened", e);
+        } catch (IOException e) {
+            throw new BuildException("The " + name + " could not be opened", e);
+        } finally {
+            FileUtils.close(in);
+        }
+        return keystore;
     }
 
     private InputStream getReponseInputStream(HttpEntity entity) {
