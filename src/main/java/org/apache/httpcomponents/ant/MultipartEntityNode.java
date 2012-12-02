@@ -26,6 +26,7 @@ import java.util.List;
 import org.apache.http.entity.mime.HttpMultipartMode;
 import org.apache.http.entity.mime.MultipartEntity;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Task;
 
 public class MultipartEntityNode extends EntityNode {
 
@@ -88,4 +89,12 @@ public class MultipartEntityNode extends EntityNode {
         return entity;
     }
 
+    @Override
+    public void log(Task task, int msgLevel) {
+        task.log("---- Multipart Request Boby ----", msgLevel);
+        for (PartNode part : parts) {
+            part.log(task, msgLevel);
+        }
+        task.log("---- EOF ----", msgLevel);
+    }
 }

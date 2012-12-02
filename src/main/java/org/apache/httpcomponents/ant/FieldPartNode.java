@@ -25,6 +25,7 @@ import java.nio.charset.UnsupportedCharsetException;
 import org.apache.http.entity.mime.content.ContentBody;
 import org.apache.http.entity.mime.content.StringBody;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Task;
 
 public class FieldPartNode extends PartNode {
 
@@ -33,7 +34,15 @@ public class FieldPartNode extends PartNode {
     private String charset;
 
     public void setValue(String value) {
-        this.value = value;
+        addText(value);
+    }
+
+    public void addText(String value) {
+        if (this.value != null) {
+            this.value += value;
+        } else {
+            this.value = value;
+        }
     }
 
     public void setCharset(String charset) {
@@ -65,4 +74,8 @@ public class FieldPartNode extends PartNode {
         return body;
     }
 
+    @Override
+    public void log(Task task, int msgLevel) {
+        task.log("Field part: name=" + getName() + " value=" + value);
+    }
 }

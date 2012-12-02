@@ -18,8 +18,11 @@
 package org.apache.httpcomponents.ant;
 
 import org.apache.http.HttpEntity;
+import org.apache.tools.ant.Task;
 
 public abstract class EntityNode {
 
     public abstract HttpEntity buildHttpEntity();
+
+    public abstract void log(Task task, int msgVerbose);
 }

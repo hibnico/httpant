@@ -18,6 +18,7 @@
 package org.apache.httpcomponents.ant;
 
 import org.apache.http.entity.mime.content.ContentBody;
+import org.apache.tools.ant.Task;
 
 public abstract class PartNode {
 
@@ -42,5 +43,7 @@ public abstract class PartNode {
     }
 
     public abstract ContentBody buildContentBoby();
+
+    public abstract void log(Task task, int msgLevel);
 
 }

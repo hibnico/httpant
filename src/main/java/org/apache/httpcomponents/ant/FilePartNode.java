@@ -22,6 +22,7 @@ import java.io.File;
 import org.apache.http.entity.mime.content.ContentBody;
 import org.apache.http.entity.mime.content.FileBody;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Task;
 
 public class FilePartNode extends PartNode {
 
@@ -59,5 +60,10 @@ public class FilePartNode extends PartNode {
             fileBody = new FileBody(file, mimeType, charset);
         }
         return fileBody;
+    }
+
+    @Override
+    public void log(Task task, int msgLevel) {
+        task.log("File part: name=" + getName() + " file=" + file + (filename != null ? (" filename=" + filename) : ""));
     }
 }

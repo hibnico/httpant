@@ -22,10 +22,13 @@ import java.net.URI;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.HttpEntityEnclosingRequestBase;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Project;
 
 public abstract class AbstractEntityEnclosingHttpClientTask extends AbstractHttpClientTask {
 
     private HttpEntity entity;
+
+    private EntityNode entityNode;
 
     protected abstract HttpEntityEnclosingRequestBase buildEntityEnclosingRequest(URI u);
 
@@ -33,6 +36,7 @@ public abstract class AbstractEntityEnclosingHttpClientTask extends AbstractHttp
         if (this.entity != null) {
             throw new BuildException("Only one entity is allowed");
         }
+        this.entityNode = entity;
         this.entity = entity.buildHttpEntity();
     }
 
@@ -49,6 +53,7 @@ public abstract class AbstractEntityEnclosingHttpClientTask extends AbstractHttp
         HttpEntityEnclosingRequestBase request = buildEntityEnclosingRequest(u);
         if (entity != null) {
             request.setEntity(entity);
+            entityNode.log(this, Project.MSG_VERBOSE);
         }
         return request;
     }

@@ -27,6 +27,7 @@ import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.entity.FileEntity;
 import org.apache.http.entity.StringEntity;
 import org.apache.tools.ant.BuildException;
+import org.apache.tools.ant.Task;
 import org.apache.tools.ant.types.Resource;
 
 public class BasicEntityNode extends EntityNode {
@@ -46,11 +47,7 @@ public class BasicEntityNode extends EntityNode {
     }
 
     public void setValue(String value) {
-        if (this.value != null) {
-            this.value += value;
-        } else {
-            this.value = value;
-        }
+        addText(value);
     }
 
     public void addText(String value) {
@@ -112,5 +109,21 @@ public class BasicEntityNode extends EntityNode {
             entity.setContentEncoding(contentEncoding);
         }
         return entity;
+    }
+
+    @Override
+    public void log(Task task, int msgLevel) {
+        if (file != null) {
+            task.log("Request body from file: " + file, msgLevel);
+        } else if (value != null) {
+            task.log("---- Request body ----", msgLevel);
+            String[] lines = value.split("\n");
+            for (String line : lines) {
+                task.log(line, msgLevel);
+            }
+            task.log("---- EOF ----", msgLevel);
+        } else if (resource != null) {
+            task.log("Request body from resource: " + resource, msgLevel);
+        }
     }
 }

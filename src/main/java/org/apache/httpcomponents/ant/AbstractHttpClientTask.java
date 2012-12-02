@@ -186,13 +186,15 @@ public abstract class AbstractHttpClientTask extends Task {
 
         DefaultHttpClient client;
         if (ssl != null) {
-            KeyStore keystore = null;
-            if (ssl.getKeystoreFile() != null) {
-                keystore = loadKeyStore("keystore", ssl.getKeystoreFile(), ssl.getKeystorePassword());
-            }
             SchemeRegistry schemeRegistry = new SchemeRegistry();
             String algorithm = SSLSocketFactory.TLS;
+            log("Loading trustore " + ssl.getTruststoreFile(), Project.MSG_VERBOSE);
             KeyStore truststore = loadKeyStore("truststore", ssl.getTruststoreFile(), ssl.getTruststorePassword());
+            KeyStore keystore = null;
+            if (ssl.getKeystoreFile() != null) {
+                log("Loading keystore " + ssl.getKeystoreFile(), Project.MSG_VERBOSE);
+                keystore = loadKeyStore("keystore", ssl.getKeystoreFile(), ssl.getKeystorePassword());
+            }
             SecureRandom secureRandom = null;
             TrustStrategy trustStrategy = null;
             X509HostnameVerifier x509HostnameVerifier = SSLSocketFactory.BROWSER_COMPATIBLE_HOSTNAME_VERIFIER;
@@ -209,6 +211,7 @@ public abstract class AbstractHttpClientTask extends Task {
             } catch (KeyStoreException e) {
                 throw new BuildException("The SSL factory could not be setup", e);
             }
+            log("Registring SSL factory", Project.MSG_VERBOSE);
             schemeRegistry.register(new Scheme("https", 443, lSchemeSocketFactory));
             HttpParams httpParams = new BasicHttpParams();
             client = new DefaultHttpClient(new BasicClientConnectionManager(schemeRegistry), httpParams);
@@ -224,86 +227,136 @@ public abstract class AbstractHttpClientTask extends Task {
         }
 
         if (credential != null) {
+            log("Basic Authetication: username=" + credential.getUsername() + " password=" + credential.getPassword().replaceAll(".", "*"),
+                    Project.MSG_VERBOSE);
             client.getCredentialsProvider().setCredentials(new AuthScope(u.getHost(), u.getPort()),
                     new UsernamePasswordCredentials(credential.getUsername(), credential.getPassword()));
         }
 
         HttpUriRequest request = buildRequest(u);
-        for (HeaderNode header : headers) {
-            request.addHeader(header.getName(), header.getValue());
+
+        log("Sending " + request.getMethod() + " to " + request.getURI(), Project.MSG_INFO);
+
+        if (!headers.isEmpty()) {
+            log("With headers:", Project.MSG_VERBOSE);
+            for (HeaderNode header : headers) {
+                log("    " + header.getName() + ": " + header.getValue(), Project.MSG_VERBOSE);
+                request.addHeader(header.getName(), header.getValue());
+            }
         }
+
         HttpResponse response;
         try {
-            response = client.execute(request);
-        } catch (ClientProtocolException e) {
-            throw new BuildException("HTTP error on request for '" + uri + "'", e);
-        } catch (IOException e) {
-            throw new BuildException("I/O error on request for '" + uri + "'", e);
+            try {
+                response = client.execute(request);
+            } catch (ClientProtocolException e) {
+                throw new BuildException("HTTP error on request for '" + uri + "'", e);
+            } catch (IOException e) {
+                throw new BuildException("I/O error on request for '" + uri + "'", e);
+            }
+            log("Response: " + response.getStatusLine(), Project.MSG_INFO);
+
+            if (statusProperty != null) {
+                getProject().setNewProperty(statusProperty, Integer.toString(response.getStatusLine().getStatusCode()));
+            }
+            if (statusReasonProperty != null) {
+                getProject().setNewProperty(statusReasonProperty, response.getStatusLine().getReasonPhrase());
+            }
+
+            log("Response headers: ", Project.MSG_VERBOSE);
+            for (Header header : response.getAllHeaders()) {
+                log("    " + header.getName() + ": " + header.getValue(), Project.MSG_VERBOSE);
+                if (reponseHeaderPropertyPrefix != null) {
+                    getProject().setNewProperty(reponseHeaderPropertyPrefix + header.getName(), header.getValue());
+                }
+            }
+
+            for (ResponseHeaderNode responseHeader : responseHeaders) {
+                Header[] header = response.getHeaders(responseHeader.getName());
+                if (header != null && header.length > 0) {
+                    if (header.length > 1) {
+                        getProject().log(
+                                header.length + " headers were found matching '" + responseHeader.getName() + "'. The property "
+                                        + responseHeader.getProperty() + "' will be set only to the first match", Project.MSG_WARN);
+                    }
+                    getProject().setNewProperty(responseHeader.getProperty(), header[0].getValue());
+                }
+            }
+
+            HttpEntity entity = response.getEntity();
+            if (entity == null) {
+                if (responseFile != null) {
+                    log("No response body, nothing written into " + responseFile, Project.MSG_VERBOSE);
+                    try {
+                        responseFile.createNewFile();
+                    } catch (IOException e) {
+                        throw new BuildException("The response file '" + responseFile + "' could not be created", e);
+                    }
+                } else if (responseProperty != null) {
+                    log("No response body, property " + responseProperty + " not set", Project.MSG_VERBOSE);
+                }
+            } else if (responseFile != null) {
+                log("Response body written into " + responseFile, Project.MSG_VERBOSE);
+                FileOutputStream out;
+                try {
+                    out = new FileOutputStream(responseFile);
+                } catch (FileNotFoundException e) {
+                    throw new BuildException("The response could not be written into " + responseFile, e);
+                }
+                try {
+                    InputStream in = getReponseInputStream(entity);
+                    try {
+                        byte[] buffer = new byte[1024 * 4];
+                        int n = 0;
+                        while (-1 != (n = in.read(buffer))) {
+                            out.write(buffer, 0, n);
+                        }
+                    } catch (IOException e) {
+                        throw new BuildException("The response could not be copied", e);
+                    } finally {
+                        FileUtils.close(in);
+                    }
+                } finally {
+                    FileUtils.close(out);
+                }
+            } else if (responseProperty != null) {
+                log("Response body written into property " + responseProperty, Project.MSG_VERBOSE);
+                String content;
+                try {
+                    content = EntityUtils.toString(entity);
+                } catch (IOException e) {
+                    throw new BuildException("The response could not be read", e);
+                }
+                String[] lines = content.split("\n");
+                log("---- Response body ----", Project.MSG_VERBOSE);
+                for (String line : lines) {
+                    log(line, Project.MSG_VERBOSE);
+                }
+                log("---- EOF ----", Project.MSG_VERBOSE);
+                getProject().setNewProperty(responseProperty, content);
+            } else {
+                if (entity != null) {
+                    String content;
+                    try {
+                        content = EntityUtils.toString(entity);
+                    } catch (IOException e) {
+                        throw new BuildException("The response could not be read", e);
+                    }
+                    String[] lines = content.split("\n");
+                    log("---- Response body ----", Project.MSG_VERBOSE);
+                    for (String line : lines) {
+                        log(line, Project.MSG_VERBOSE);
+                    }
+                    log("---- EOF ----", Project.MSG_VERBOSE);
+                }
+            }
+
+            if (expectedStatus != null && expectedStatus != response.getStatusLine().getStatusCode()) {
+                throw new BuildException("Expecting " + expectedStatus + " but received " + response.getStatusLine().getStatusCode());
+            }
+
         } finally {
             client.getConnectionManager().shutdown();
-        }
-
-        if (expectedStatus != null && expectedStatus != response.getStatusLine().getStatusCode()) {
-            throw new BuildException("Expecting " + expectedStatus + " but received " + response.getStatusLine().getStatusCode());
-        }
-        if (statusProperty != null) {
-            getProject().setNewProperty(statusProperty, Integer.toString(response.getStatusLine().getStatusCode()));
-        }
-        if (statusReasonProperty != null) {
-            getProject().setNewProperty(statusReasonProperty, response.getStatusLine().getReasonPhrase());
-        }
-
-        if (reponseHeaderPropertyPrefix != null) {
-            for (Header header : response.getAllHeaders()) {
-                getProject().setNewProperty(reponseHeaderPropertyPrefix + header.getName(), header.getValue());
-            }
-        }
-
-        for (ResponseHeaderNode responseHeader : responseHeaders) {
-            Header[] header = response.getHeaders(responseHeader.getName());
-            if (header != null && header.length > 0) {
-                if (header.length > 1) {
-                    getProject().log(
-                            header.length + " headers were found matching '" + responseHeader.getName() + "'. The property "
-                                    + responseHeader.getProperty() + "' will be set only to the first match", Project.MSG_WARN);
-                }
-                getProject().setNewProperty(responseHeader.getProperty(), header[0].getValue());
-            }
-        }
-
-        if (responseFile != null) {
-            HttpEntity entity = response.getEntity();
-            FileOutputStream out;
-            try {
-                out = new FileOutputStream(responseFile);
-            } catch (FileNotFoundException e) {
-                throw new BuildException("The response could not be written into " + responseFile, e);
-            }
-            try {
-                InputStream in = getReponseInputStream(entity);
-                try {
-                    byte[] buffer = new byte[1024 * 4];
-                    int n = 0;
-                    while (-1 != (n = in.read(buffer))) {
-                        out.write(buffer, 0, n);
-                    }
-                } catch (IOException e) {
-                    throw new BuildException("The response could not be copied", e);
-                } finally {
-                    FileUtils.close(in);
-                }
-            } finally {
-                FileUtils.close(out);
-            }
-        } else if (responseProperty != null) {
-            HttpEntity entity = response.getEntity();
-            String content;
-            try {
-                content = EntityUtils.toString(entity);
-            } catch (IOException e) {
-                throw new BuildException("The response could not be read", e);
-            }
-            getProject().setNewProperty(responseProperty, content);
         }
     }
 
