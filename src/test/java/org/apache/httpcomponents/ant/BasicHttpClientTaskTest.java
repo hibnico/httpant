@@ -21,8 +21,10 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.util.Arrays;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.httpcomponents.ant.HTTPServerShell.RequestHandler;
 import org.apache.tools.ant.BuildException;
 import org.apache.tools.ant.Project;
 import org.junit.AfterClass;
@@ -41,7 +43,6 @@ public class BasicHttpClientTaskTest {
     @BeforeClass
     public static void beforeClass() throws Exception {
         httpServerShell.startServer();
-        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
         tempDir = File.createTempFile("httpant-test", "");
         tempDir.delete();
         tempDir.mkdir();
@@ -60,6 +61,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testGet() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -71,6 +74,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testGetExpected() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -91,6 +96,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testGetResponse() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -103,6 +110,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testGetResponseFile() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         GetHttpClientTask task = new GetHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -116,6 +125,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testHead() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         HeadHttpClientTask task = new HeadHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -125,6 +136,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testDelete() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         DeleteHttpClientTask task = new DeleteHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -134,6 +147,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testOptions() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         OptionsHttpClientTask task = new OptionsHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -143,6 +158,8 @@ public class BasicHttpClientTaskTest {
 
     @Test
     public void testTrace() throws Exception {
+        httpServerShell.setHandler(HTTPServerShell.PING_HANDLER);
+
         TraceHttpClientTask task = new TraceHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
@@ -150,4 +167,21 @@ public class BasicHttpClientTaskTest {
         task.execute();
     }
 
+    @Test
+    public void testHeaders() throws Exception {
+        RequestHandler handler = new RequestHandler();
+        httpServerShell.setHandler(handler);
+
+        GetHttpClientTask task = new GetHttpClientTask();
+        task.setProject(project);
+        task.setUri(httpServerShell.getHttpServerUri());
+        task.setExpectedStatus(200);
+        HeaderNode header = new HeaderNode();
+        header.setName("X-test");
+        header.setValue("somevalue");
+        task.add(header);
+        task.execute();
+
+        assertEquals(Arrays.asList("somevalue"), handler.getHeaders().get("X-test"));
+    }
 }

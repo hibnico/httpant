@@ -19,10 +19,17 @@ package org.apache.httpcomponents.ant;
 
 import java.io.IOException;
 import java.security.KeyStore;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import javax.servlet.MultipartConfigElement;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 
 import org.apache.commons.io.IOUtils;
 import org.eclipse.jetty.security.ConstraintMapping;
@@ -162,4 +169,44 @@ public class HTTPServerShell {
             response.getOutputStream().close();
         }
     };
+
+    public static class RequestHandler extends AbstractHandler {
+
+        private List<Part> parts = new ArrayList<Part>();
+
+        private Map<String, List<String>> headers = new HashMap<String, List<String>>();
+
+        @Override
+        public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
+                ServletException {
+            if (baseRequest.getContentType() != null && baseRequest.getContentType().startsWith("multipart/form-data")) {
+                // ensure multipart are parsed
+                baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, new MultipartConfigElement((String) null));
+                parts.addAll(baseRequest.getParts());
+            }
+            @SuppressWarnings("unchecked")
+            Enumeration<String> headerNames = baseRequest.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String name = headerNames.nextElement();
+                List<String> headerValues = headers.get(name);
+                if (headerValues == null) {
+                    headerValues = new ArrayList<String>();
+                    headers.put(name, headerValues);
+                }
+                @SuppressWarnings("unchecked")
+                Enumeration<String> headerEnum = baseRequest.getHeaders(name);
+                while (headerEnum.hasMoreElements()) {
+                    headerValues.add(headerEnum.nextElement());
+                }
+            }
+        }
+
+        public List<Part> getParts() {
+            return parts;
+        }
+
+        public Map<String, List<String>> getHeaders() {
+            return headers;
+        }
+    }
 }

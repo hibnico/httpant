@@ -20,22 +20,15 @@ package org.apache.httpcomponents.ant;
 import static org.junit.Assert.assertEquals;
 
 import java.io.File;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
-import javax.servlet.MultipartConfigElement;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.apache.httpcomponents.ant.HTTPServerShell.RequestHandler;
 import org.apache.tools.ant.Project;
 import org.apache.tools.ant.types.resources.PropertyResource;
-import org.eclipse.jetty.server.Request;
-import org.eclipse.jetty.server.handler.AbstractHandler;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -153,17 +146,9 @@ public class PostHttpClientTaskTest {
     }
 
     @Test
-    public void testMultipartEntity() throws Exception {
-        final List<Part> parts = new ArrayList<Part>();
-        httpServerShell.setHandler(new AbstractHandler() {
-            @Override
-            public void handle(String target, Request baseRequest, HttpServletRequest request, HttpServletResponse response) throws IOException,
-                    ServletException {
-                baseRequest.setAttribute(Request.__MULTIPART_CONFIG_ELEMENT, new MultipartConfigElement((String) null));
-                parts.clear();
-                parts.addAll(baseRequest.getParts());
-            }
-        });
+    public void testFieldPart() throws Exception {
+        RequestHandler handler = new RequestHandler();
+        httpServerShell.setHandler(handler);
 
         PostHttpClientTask task = new PostHttpClientTask();
         task.setProject(project);
@@ -177,16 +162,24 @@ public class PostHttpClientTaskTest {
         task.add(entity);
         task.execute();
 
+        List<Part> parts = handler.getParts();
+
         assertEquals(1, parts.size());
         assertEquals("field", parts.get(0).getName());
         assertEquals("value", IOUtils.toString(parts.get(0).getInputStream()));
+    }
 
-        task = new PostHttpClientTask();
+    @Test
+    public void testMultiFieldPart() throws Exception {
+        RequestHandler handler = new RequestHandler();
+        httpServerShell.setHandler(handler);
+
+        PostHttpClientTask task = new PostHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
-        entity = new MultipartEntityNode();
-        part = new FieldPartNode();
+        MultipartEntityNode entity = new MultipartEntityNode();
+        FieldPartNode part = new FieldPartNode();
         part.setName("field");
         part.setValue("value");
         entity.add(part);
@@ -199,6 +192,8 @@ public class PostHttpClientTaskTest {
         task.add(entity);
         task.execute();
 
+        List<Part> parts = handler.getParts();
+
         assertEquals(2, parts.size());
         assertEquals("field", parts.get(0).getName());
         assertEquals("value", IOUtils.toString(parts.get(0).getInputStream()));
@@ -206,59 +201,80 @@ public class PostHttpClientTaskTest {
         assertEquals("value2", IOUtils.toString(parts.get(1).getInputStream()));
         assertEquals("text/xml; charset=UTF-8", parts.get(1).getContentType());
 
-        String data = "Ant and HttpClient rulez";
-        File dataFile = new File(tempDir, "data2.txt");
-        FileUtils.writeStringToFile(dataFile, data);
+    }
 
-        task = new PostHttpClientTask();
+    @Test
+    public void testFilePart() throws Exception {
+        RequestHandler handler = new RequestHandler();
+        httpServerShell.setHandler(handler);
+
+        String data2 = "Ant and HttpClient rulez";
+        File data2File = new File(tempDir, "data2.txt");
+        FileUtils.writeStringToFile(data2File, data2);
+
+        PostHttpClientTask task = new PostHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
-        entity = new MultipartEntityNode();
+        MultipartEntityNode entity = new MultipartEntityNode();
         FilePartNode filepart = new FilePartNode();
         filepart.setName("datafile");
-        filepart.setFile(dataFile);
+        filepart.setFile(data2File);
         entity.add(filepart);
         task.add(entity);
         task.execute();
 
+        List<Part> parts = handler.getParts();
+
         assertEquals(1, parts.size());
         assertEquals("datafile", parts.get(0).getName());
-        assertEquals(data, IOUtils.toString(parts.get(0).getInputStream()));
+        assertEquals(data2, IOUtils.toString(parts.get(0).getInputStream()));
+    }
+
+    @Test
+    public void testMultiPart() throws Exception {
+        RequestHandler handler = new RequestHandler();
+        httpServerShell.setHandler(handler);
 
         String data3 = "Ant and HttpClient rulez";
         File data3File = new File(tempDir, "data3.txt");
         FileUtils.writeStringToFile(data3File, data3);
 
-        task = new PostHttpClientTask();
+        String data4 = "Ant and HttpClient rulez";
+        File data4File = new File(tempDir, "data4.txt");
+        FileUtils.writeStringToFile(data4File, data4);
+
+        PostHttpClientTask task = new PostHttpClientTask();
         task.setProject(project);
         task.setUri(httpServerShell.getHttpServerUri());
         task.setExpectedStatus(200);
-        entity = new MultipartEntityNode();
-        filepart = new FilePartNode();
-        filepart.setName("datafile");
-        filepart.setFile(dataFile);
+        MultipartEntityNode entity = new MultipartEntityNode();
+        FilePartNode filepart = new FilePartNode();
+        filepart.setName("data3file");
+        filepart.setFile(data3File);
         entity.add(filepart);
-        part = new FieldPartNode();
+        FieldPartNode part = new FieldPartNode();
         part.setName("field");
         part.setValue("value");
         entity.add(part);
         filepart = new FilePartNode();
-        filepart.setName("data3file");
-        filepart.setFile(data3File);
+        filepart.setName("data4file");
+        filepart.setFile(data4File);
         filepart.setMimeType("text/xml");
         filepart.setCharset("UTF-8");
         entity.add(filepart);
         task.add(entity);
         task.execute();
 
+        List<Part> parts = handler.getParts();
+
         assertEquals(3, parts.size());
         assertEquals("field", parts.get(0).getName());
         assertEquals("value", IOUtils.toString(parts.get(0).getInputStream()));
-        assertEquals("data3file", parts.get(1).getName());
-        assertEquals(data3, IOUtils.toString(parts.get(1).getInputStream()));
+        assertEquals("data4file", parts.get(1).getName());
+        assertEquals(data4, IOUtils.toString(parts.get(1).getInputStream()));
         assertEquals("text/xml; charset=UTF-8", parts.get(1).getContentType());
-        assertEquals("datafile", parts.get(2).getName());
-        assertEquals(data, IOUtils.toString(parts.get(2).getInputStream()));
+        assertEquals("data3file", parts.get(2).getName());
+        assertEquals(data3, IOUtils.toString(parts.get(2).getInputStream()));
     }
 }
