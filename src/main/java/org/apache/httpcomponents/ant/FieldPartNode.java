@@ -76,6 +76,6 @@ public class FieldPartNode extends PartNode {
 
     @Override
     public void log(Task task, int msgLevel) {
-        task.log("Field part: name=" + getName() + " value=" + value);
+        task.log("Field part: name=" + getName() + " value=" + value, msgLevel);
     }
 }

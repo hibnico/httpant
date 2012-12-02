@@ -64,6 +64,6 @@ public class FilePartNode extends PartNode {
 
     @Override
     public void log(Task task, int msgLevel) {
-        task.log("File part: name=" + getName() + " file=" + file + (filename != null ? (" filename=" + filename) : ""));
+        task.log("File part: name=" + getName() + " file=" + file + (filename != null ? (" filename=" + filename) : ""), msgLevel);
     }
 }
